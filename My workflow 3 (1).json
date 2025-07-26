@@ -1,0 +1,205 @@
+{
+  "name": "My workflow 3",
+  "nodes": [
+    {
+      "parameters": {
+        "formTitle": "                            Resume Refiner AI Agent \nPlease submit your resume, desired job description and email for the AI Agent to provide you with suggestion on how to update your resume for the specific job you are interested in applying for.",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "resume",
+              "fieldType": "file",
+              "multipleFiles": false,
+              "acceptFileTypes": ".doc, .pdf",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "Email",
+              "fieldType": "email",
+              "placeholder": "kayl123@gmail.com",
+              "requiredField": true
+            },
+            {
+              "fieldLabel": "job_link",
+              "placeholder": "input proper url",
+              "requiredField": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2.2,
+      "position": [
+        -160,
+        -48
+      ],
+      "id": "e5696473-4639-4be2-a896-7f8ea7dceaf7",
+      "name": "On form submission",
+      "webhookId": "8b6d8412-b4b1-445e-b506-1ea29979c3f9"
+    },
+    {
+      "parameters": {
+        "url": "={{ $json.job_link }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.2,
+      "position": [
+        16,
+        -48
+      ],
+      "id": "6ce6d4e2-fd1b-4506-a224-492ccf8ca718",
+      "name": "HTTP Request"
+    },
+    {
+      "parameters": {
+        "promptType": "define",
+        "text": "=You are an AI Resume Refiner. Your task is to analyze a user resume and compare it with the job description. \nUse HTTP Request output as you input.\nHighlight relevant skills and suggest edits to make the resume stand out based on the job requirements.\nExtract the job description text from the following HTML content and use it to refine the resume.\n\nJob Description HTML:\n{{ $json.job_description }}\n\nResume File Name:\n{{ $('On form submission').item.json.resume.filename }}\n\nProvide tailored suggestions based on these inputs.\nDo not add unrelated details.",
+        "options": {}
+      },
+      "type": "@n8n/n8n-nodes-langchain.agent",
+      "typeVersion": 2.1,
+      "position": [
+        352,
+        -48
+      ],
+      "id": "651a0871-16e7-4690-953f-9741364e01e2",
+      "name": "AI Agent",
+      "alwaysOutputData": true
+    },
+    {
+      "parameters": {
+        "model": {
+          "__rl": true,
+          "value": "chatgpt-4o-latest",
+          "mode": "list",
+          "cachedResultName": "chatgpt-4o-latest"
+        },
+        "options": {
+          "responseFormat": "text"
+        }
+      },
+      "type": "@n8n/n8n-nodes-langchain.lmChatOpenAi",
+      "typeVersion": 1.2,
+      "position": [
+        336,
+        192
+      ],
+      "id": "07816321-5328-4ba8-9821-7a09181257c2",
+      "name": "OpenAI Chat Model",
+      "credentials": {
+        "openAiApi": {
+          "id": "y2UzNE614H8P7DUM",
+          "name": "OpenAi account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "sendTo": "=Gracekb2019@gmail.com",
+        "subject": "Your Tailored Resume Suggestions",
+        "message": "={{ $json.output }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.gmail",
+      "typeVersion": 2.1,
+      "position": [
+        672,
+        -48
+      ],
+      "id": "ecfbe79f-d8d9-4309-8f32-59f9e4ef17ac",
+      "name": "Send a message",
+      "webhookId": "306c1bcc-6aaf-473c-8371-2e63864740ca",
+      "credentials": {
+        "gmailOAuth2": {
+          "id": "xDUTEgruAUrcKNh5",
+          "name": "Gmail account 2"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "mode": "runOnceForEachItem",
+        "jsCode": "const rawHtml = $json.data || \"\";\n\n// Remove HTML tags and extra spaces\nlet jobText = rawHtml.replace(/<[^>]*>/g, ' ').replace(/\\s+/g, ' ').trim();\n\n// Truncate if too long\nconst maxLength = 5000;\nif (jobText.length > maxLength) {\n  jobText = jobText.substring(0, maxLength) + \"...(truncated)\";\n}\n\n// Return as a single object\nreturn {\n  job_description: jobText,\n  resume: $json.resume,\n  Email: $json.Email\n};\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        192,
+        -48
+      ],
+      "id": "a47d026a-0229-4a5f-9774-6e943c8d78b1",
+      "name": "Code"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "On form submission": {
+      "main": [
+        [
+          {
+            "node": "HTTP Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "HTTP Request": {
+      "main": [
+        [
+          {
+            "node": "Code",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "OpenAI Chat Model": {
+      "ai_languageModel": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "ai_languageModel",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "AI Agent": {
+      "main": [
+        [
+          {
+            "node": "Send a message",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Code": {
+      "main": [
+        [
+          {
+            "node": "AI Agent",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "versionId": "0344adb4-421b-4580-a191-1d396c9f6b89",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "85f3afb34bca94c127b49ea57d804394fc53cbb30d6b4862785c8b563736b46c"
+  },
+  "id": "Ov8Fy9bBu5jgzJEu",
+  "tags": []
+}
